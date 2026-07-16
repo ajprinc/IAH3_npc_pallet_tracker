@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IAH3 NPC Tracker</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1a1a2e;color:#eee;min-height:100vh}
+.nav{display:flex;background:#16213e;border-bottom:3px solid #0f3460;position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.nav button{flex:1;padding:12px 6px;border:none;background:transparent;color:#aaa;font-size:12px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;min-width:70px}
+.nav button.active{color:#4fc3f7;border-bottom-color:#4fc3f7;background:rgba(79,195,247,0.05)}
+.nav button:hover{color:#fff;background:rgba(255,255,255,0.05)}
+.page{display:none;padding:16px;max-width:1300px;margin:0 auto}
+.page.active{display:block}
+h1{font-size:20px;margin-bottom:6px;color:#4fc3f7}
+h2{font-size:16px;margin:14px 0 8px;color:#81d4fa}
+h3{font-size:14px;margin:10px 0 6px;color:#b3e5fc}
+.subtitle{color:#888;font-size:12px;margin-bottom:16px}
+.card{background:#16213e;border-radius:10px;padding:14px;border:1px solid #0f3460;margin-bottom:12px}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:11px;color:#aaa;margin-bottom:3px;font-weight:600}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 10px;border-radius:7px;border:1px solid #333;background:#0e1628;color:#eee;font-size:13px}
+.form-group textarea{resize:vertical;min-height:40px;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#4fc3f7}
+.checkbox-group{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.checkbox-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0e1628;border-radius:7px;border:1px solid #333}
+.checkbox-item input[type="checkbox"]{width:16px;height:16px;accent-color:#4fc3f7}
+.checkbox-item label{font-size:12px;color:#ddd;cursor:pointer}
+.btn{padding:8px 16px;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;margin:3px 2px}
+.btn-primary{background:#4fc3f7;color:#000}
+.btn-primary:hover{background:#81d4fa}
+.btn-danger{background:#e53935;color:#fff}
+.btn-danger:hover{background:#ef5350}
+.btn-success{background:#4caf50;color:#fff}
+.btn-success:hover{background:#66bb6a}
+.btn-warning{background:#ff9800;color:#000}
+.btn-warning:hover{background:#ffb74d}
+.btn-secondary{background:#455a64;color:#fff}
+.btn-secondary:hover{background:#607d8b}
+.btn-sm{padding:5px 10px;font-size:11px}
+.map-container{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.map-column{display:flex;flex-direction:column;gap:6px;align-items:center}
+.map-column h3{margin-bottom:4px;font-size:12px}
+.station{width:140px;min-height:70px;border:2px solid #333;border-radius:8px;padding:6px;font-size:10px;cursor:pointer;transition:all 0.2s;position:relative}
+.station:hover{border-color:#4fc3f7;background:rgba(79,195,247,0.05)}
+.station.selected{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,0.3)}
+.station .st-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.station .st-name{font-weight:700;font-size:11px;color:#ccc}
+.station.has-pallet{border-style:solid}
+.station.type-decant{border-color:#4caf50;background:rgba(76,175,80,0.08)}
+.station.type-nocsx{border-color:#ff9800;background:rgba(255,152,0,0.08)}
+.station.type-eaches{border-color:#9c27b0;background:rgba(156,39,176,0.08)}
+.station.wip{animation:pulse 2s infinite}
+.station .pax-id{font-size:10px;color:#fff;word-break:break-all;font-weight:600}
+.station .st-desc{font-size:9px;color:#aaa;margin-top:2px}
+.station .st-worker{font-size:9px;color:#4fc3f7;margin-top:2px}
+.station .st-timer{font-size:10px;color:#ffeb3b;font-weight:700}
+.station .st-status{position:absolute;top:3px;right:5px;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700}
+.st-status.wip{background:#4fc3f7;color:#000}
+.st-status.partial{background:#ff9800;color:#000}
+.st-status.paused{background:#ffeb3b;color:#000}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(79,195,247,0.3)}50%{box-shadow:0 0 10px 3px rgba(79,195,247,0.4)}}
+.buffer-section{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.buffer-lane{background:#16213e;border-radius:10px;padding:10px;border:1px solid #0f3460}
+.buffer-lane h3{text-align:center;margin-bottom:8px;font-size:11px}
+.buffer-slots{display:flex;flex-direction:column;gap:6px}
+.queue-item{display:flex;align-items:center;gap:10px;padding:10px;background:#0e1628;border-radius:8px;border-left:4px solid #555;margin-bottom:6px}
+.queue-item.type-decant{border-left-color:#4caf50}
+.queue-item.type-nocsx{border-left-color:#ff9800}
+.queue-item.type-eaches{border-left-color:#9c27b0}
+.queue-item .qi-id{font-weight:700;font-size:12px;flex:1}
+.queue-item .qi-meta{font-size:10px;color:#aaa}
+.queue-item .qi-status{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600}
+.qi-status.waiting{background:rgba(76,175,80,0.2);color:#4caf50}
+.qi-status.assigned{background:rgba(79,195,247,0.2);color:#4fc3f7}
+.qi-status.wip{background:rgba(255,235,59,0.2);color:#ffeb3b}
+.qi-status.partial{background:rgba(255,152,0,0.2);color:#ff9800}
+.person-card{display:flex;align-items:center;gap:12px;padding:10px;background:#0e1628;border-radius:8px;margin-bottom:6px;border-left:4px solid #4fc3f7}
+.person-card.idle{border-left-color:#555}
+.person-card .pc-name{font-weight:700;font-size:13px;flex:1}
+.person-card .pc-meta{font-size:10px;color:#aaa;text-align:right}
+.person-card .pc-timer{font-size:11px;color:#ffeb3b;font-weight:700}
+.staffing-bar{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.staff-stat{background:#0e1628;border-radius:8px;padding:10px 14px;text-align:center;border:1px solid #333;min-width:100px}
+.staff-stat .num{font-size:22px;font-weight:700}
+.staff-stat .lbl{font-size:10px;color:#aaa;margin-top:2px}
+.staff-stat.warn{border-color:#ff9800}
+.staff-stat.warn .num{color:#ff9800}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#1a1a2e;border:1px solid #0f3460;border-radius:12px;padding:20px;width:90%;max-width:400px;max-height:85vh;overflow-y:auto}
+.modal h3{margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+th,td{padding:7px 8px;text-align:left;border-bottom:1px solid #333}
+th{background:#0f3460;color:#4fc3f7;font-weight:600}
+.info-card{background:#16213e;border-radius:10px;padding:14px;margin-bottom:12px;border-left:4px solid #4fc3f7}
+.info-card.decant{border-left-color:#4caf50}
+.info-card.eaches{border-left-color:#9c27b0}
+.info-card.presort{border-left-color:#ff9800}
+.info-card.dock{border-left-color:#78909c}
+.info-card h3{margin-bottom:6px}
+.info-card ul{margin-left:18px;font-size:12px;line-height:1.7;color:#ccc}
+.hl-g{color:#4caf50;font-weight:600}
+.hl-r{color:#e53935;font-weight:600}
+.hl-y{color:#ffeb3b;font-weight:600}
+.hl-p{color:#e91e63;font-weight:600}
+.hl-o{color:#ff9800;font-weight:600}
+.perm-tag{font-size:9px;padding:2px 5px;border-radius:3px;display:inline-block;margin:1px}
+.perm-tag.decant{background:rgba(76,175,80,0.2);color:#4caf50}
+.perm-tag.eaches{background:rgba(156,39,176,0.2);color:#ce93d8}
+.perm-tag.carton{background:rgba(255,152,0,0.2);color:#ff9800}
+.move-hint{background:#0f3460;color:#4fc3f7;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;display:none}
+.move-hint.show{display:block}
+@media(max-width:768px){.station{width:120px;min-height:60px}.map-container{gap:10px}}
+</style>
+</head>
+<body>
+<div class="nav">
+  <button class="active" onclick="showPage('map',this)">&#128506; Map</button>
+  <button onclick="showPage('queue',this)">&#128230; Queue</button>
+  <button onclick="showPage('people',this)">&#128101; People</button>
+  <button onclick="showPage('manager',this)">&#128084; Manager</button>
+  <button onclick="showPage('info',this)">&#8505; Info</button>
+</div>
+
+<div id="page-map" class="page active">
+  <h1>Floor Map</h1>
+  <p class="subtitle">Tap station to see details. Use Move mode to rearrange pallets.</p>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+    <button class="btn btn-success btn-sm" id="editBtn" onclick="toggleEditMode()">&#9998; Edit Mode</button>
+    <button class="btn btn-secondary btn-sm" id="moveBtn" onclick="toggleMoveMode()">&#8644; Move Mode</button>
+    <button class="btn btn-primary btn-sm" onclick="exportData()">&#128229; Export CSV</button>
+  </div>
+  <div class="move-hint" id="editHint">EDIT MODE: Tap any station to scan a pallet into it (or tap occupied to remove).</div>
+  <div class="move-hint" id="moveHint">MOVE MODE: Tap source station, then tap destination.</div>
+  <div class="map-container" id="mapContainer"></div>
+  <div class="buffer-section" id="bufferSection"></div>
+</div>
+
+<div id="page-queue" class="page">
+  <h1>Pallet Queue</h1>
+  <p class="subtitle">All pallets in the area, sorted oldest first (FIFO)</p>
+  <div class="card">
+    <h3>Scan In New Pallet</h3>
+    <div class="form-group">
+      <label>Pallet ID (scan paX label)</label>
+      <input type="text" id="qPalletId" placeholder="Scan or type full paX ID...">
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <select id="qType">
+        <option value="decant">Decant (has CSX)</option>
+        <option value="nocsx">Decant (NO CSX - needs Carton Preditor)</option>
+        <option value="eaches">Each Receive</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="qDesc" placeholder="e.g. mixed juices, heavy boxes..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Date Arrived</label>
+      <input type="date" id="qDate">
+    </div>
+    <div class="form-group">
+      <label>Place at station (optional)</label>
+      <select id="qStation"><option value="">-- buffer/unplaced --</option></select>
+    </div>
+    <button class="btn btn-success" onclick="scanPallet()">&#10004; Add Pallet</button>
+  </div>
+  <h2>Current Queue (<span id="queueCount">0</span>)</h2>
+  <div id="queueList"></div>
+</div>
+
+<div id="page-people" class="page">
+  <h1>Active Associates</h1>
+  <p class="subtitle">Who's working, their station, and timer. Request work here.</p>
+  <div class="card">
+    <h3>Check In / Request Work</h3>
+    <div class="form-group">
+      <label>Associate Login</label>
+      <input type="text" id="pLogin" placeholder="e.g. jsmith">
+    </div>
+    <div class="form-group">
+      <label>Assign to Station</label>
+      <select id="pStation"></select>
+    </div>
+    <button class="btn btn-primary" onclick="checkInAssociate()">Check In + Assign Work</button>
+  </div>
+  <h2>On Floor</h2>
+  <div id="peopleList"></div>
+</div>
+
+<div id="page-manager" class="page">
+  <h1>Manager Portal</h1>
+  <p class="subtitle">Roster, permissions, and staffing overview</p>
+  <div class="card">
+    <h3>Staffing Overview</h3>
+    <div class="staffing-bar" id="staffingBar"></div>
+  </div>
+  <div class="card">
+    <h3>Add / Update Associate</h3>
+    <div class="form-group">
+      <label>Login / Badge</label>
+      <input type="text" id="mgrLogin" placeholder="e.g. jsmith">
+    </div>
+    <div class="form-group">
+      <label>Name (optional)</label>
+      <input type="text" id="mgrName" placeholder="e.g. John Smith">
+    </div>
+    <div class="form-group">
+      <label>Permissions</label>
+      <div class="checkbox-group">
+        <div class="checkbox-item"><input type="checkbox" id="permDecant"><label for="permDecant">Decant</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="permEaches"><label for="permEaches">Each Receive</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="permCarton"><label for="permCarton">Carton Preditor</label></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Shift</label>
+      <select id="mgrShift">
+        <option value="FHD">FHD</option><option value="FHN">FHN</option>
+        <option value="BHD">BHD</option><option value="BHN">BHN</option>
+        <option value="DONUT">Donut</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="addAssociate()">Add / Update</button>
+  </div>
+  <h3>Roster</h3>
+  <table>
+    <thead><tr><th>Login</th><th>Name</th><th>Perms</th><th>Shift</th><th></th></tr></thead>
+    <tbody id="rosterBody"></tbody>
+  </table>
+</div>
+
+<div id="page-info" class="page">
+  <h1>NPC Work Types</h1>
+  <p class="subtitle">Quick reference</p>
+  <div class="info-card decant">
+    <h3>1) Decant Pallet</h3>
+    <ul>
+      <li><span class="hl-g">Pallet received</span> - "PALLET"/"PALLETLP" in FC Research</li>
+      <li><span class="hl-p">Multi ASIN</span> (mixed items)</li>
+      <li><span class="hl-g">Has CSX labels</span> - normal decant</li>
+      <li><span class="hl-y">No CSX labels</span> - <span class="hl-r">Carton Preditor</span> first, then decant</li>
+    </ul>
+  </div>
+  <div class="info-card eaches">
+    <h3>2) Each Receive Pallet</h3>
+    <ul>
+      <li><span class="hl-r">NOT</span> pallet received (must be each received)</li>
+      <li>No inventory attached when you scan paX</li>
+      <li>Sometimes requires prep</li>
+    </ul>
+  </div>
+  <div class="info-card presort">
+    <h3>3) Pre-sort Pallet</h3>
+    <ul>
+      <li>Pallet received (like decant)</li>
+      <li><span class="hl-p">Single ASIN</span> (not mixed)</li>
+      <li>Non-PID conveyable</li>
+    </ul>
+  </div>
+  <div class="info-card dock">
+    <h3>4) Dock Door / Outbound</h3>
+    <ul>
+      <li>Single destination - goes straight to dock door</li>
+    </ul>
+  </div>
+  <div class="card" style="border-left:3px solid #ffeb3b">
+    <h3 style="color:#ffeb3b">FC Research Lookup</h3>
+    <ul style="margin-left:18px;font-size:12px;line-height:1.7;color:#ccc">
+      <li><strong>qi-fcresearch-na.corp.amazon.com</strong></li>
+      <li>Search paX - Receive History - Process Path</li>
+      <li>"PALLET"/"PALLETLP" = pallet received</li>
+      <li>No history = Each Receive</li>
+    </ul>
+  </div>
+</div>
+
+<div class="modal-overlay" id="scanModal">
+  <div class="modal">
+    <h3>Scan Pallet into <span id="scanSlotName"></span></h3>
+    <div class="form-group">
+      <label>Pallet ID (scan paX label)</label>
+      <input type="text" id="scanPalletId" placeholder="Scan or type full paX ID...">
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <select id="scanType">
+        <option value="decant">Decant (has CSX)</option>
+        <option value="nocsx">Decant (NO CSX - needs Carton Preditor)</option>
+        <option value="eaches">Each Receive</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Description (what does it look like?)</label>
+      <textarea id="scanDesc" placeholder="e.g. pallet of mixed juices, heavy detergent boxes..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Date Arrived</label>
+      <input type="date" id="scanDate">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-success" onclick="confirmScanIn()">&#10004; Add</button>
+      <button class="btn btn-secondary" onclick="closeScanModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="stationModal">
+  <div class="modal">
+    <h3 id="smTitle">Station</h3>
+    <div id="smContent"></div>
+    <div id="smActions" style="margin-top:12px"></div>
+    <button class="btn btn-secondary btn-sm" onclick="closeStationModal()" style="margin-top:10px">Close</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="stopModal">
+  <div class="modal">
+    <h3>Stop Work</h3>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="stopStatus">
+        <option value="complete">Complete - pallet done</option>
+        <option value="partial">Partial - work remaining</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notes (optional)</label>
+      <textarea id="stopNotes" placeholder="e.g. half pallet done, 3 totes left..."></textarea>
+    </div>
+    <button class="btn btn-success" onclick="confirmStop()">Confirm</button>
+    <button class="btn btn-secondary" onclick="closeStopModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+function get(k,fb){try{return JSON.parse(localStorage.getItem('npc_'+k))||fb}catch(e){return fb}}
+function set(k,v){localStorage.setItem('npc_'+k,JSON.stringify(v))}
+
+function getStations(){
+  var s=get('stations',null);
+  if(s)return s;
+  var stations=[];
+  for(var i=20;i>=12;i--)stations.push({id:'2-'+String(i).padStart(2,'0'),label:'2-'+String(i).padStart(2,'0'),side:'decant',note:i===20?'Decant #9 (newest)':i===12?'Decant #1 (oldest)':'Decant #'+(i-11)});
+  stations.push({id:'2-11',label:'2-11',side:'special',note:'Damages / Overflow'});
+  stations.push({id:'2-10',label:'2-10',side:'special',note:'Carton Preditor'});
+  for(var i=1;i<=9;i++)stations.push({id:'2-'+String(i).padStart(2,'0'),label:'2-'+String(i).padStart(2,'0'),side:'eaches',note:i===1?'Eaches #9 (newest)':i===9?'Eaches #1 (oldest)':'Eaches #'+(10-i)});
+  for(var i=1;i<=4;i++)stations.push({id:'BUF-D'+i,label:'Buf D'+i,side:'buf-decant',note:'Decant Buffer '+i});
+  for(var i=1;i<=4;i++)stations.push({id:'BUF-E'+i,label:'Buf E'+i,side:'buf-eaches',note:'Eaches Buffer '+i});
+  set('stations',stations);
+  return stations;
+}
+
+function getPallets(){return get('pallets',{})}
+function savePallets(p){set('pallets',p)}
+function getActive(){return get('active',{})}
+function saveActive(a){set('active',a)}
+function getRoster(){return get('roster',[])}
+function saveRoster(r){set('roster',r)}
+function getCompleted(){return get('completed',[])}
+function saveCompleted(c){set('completed',c)}
+
+function fmtTime(ms){
+  if(!ms||ms<=0)return'0:00';
+  var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  return h>0?h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'):m+':'+String(sec).padStart(2,'0');
+}
+function getElapsed(p){
+  if(!p.wipStart&&!p.wipTotal)return 0;
+  var total=p.wipTotal||0;
+  if(p.wipPaused)return total;
+  if(p.wipStart)return total+(Date.now()-p.wipStart);
+  return total;
+}
+function typeLabel(t){return t==='decant'?'Decant (CSX)':t==='nocsx'?'No CSX (CP)':'Eaches'}
+function typeClass(t){return t==='decant'?'type-decant':t==='nocsx'?'type-nocsx':'type-eaches'}
+
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active')});
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='map')renderMap();
+  if(name==='queue'){renderQueue();populateStationSelect('qStation',true)}
+  if(name==='people'){renderPeople();populateStationSelect('pStation',false)}
+  if(name==='manager'){renderRoster();renderStaffing()}
+}
+
+function populateStationSelect(id,includeEmpty){
+  var stations=getStations();
+  var pallets=getPallets();
+  var occupied={};
+  for(var pid in pallets){if(pallets[pid].station)occupied[pallets[pid].station]=true}
+  var sel=document.getElementById(id);
+  sel.innerHTML=includeEmpty?'<option value="">-- buffer/unplaced --</option>':'<option value="">-- select station --</option>';
+  stations.forEach(function(s){
+    var taken=occupied[s.id]?' [OCCUPIED]':'';
+    sel.innerHTML+='<option value="'+s.id+'">'+s.label+' ('+s.note+')'+taken+'</option>';
+  });
+}
+
+var moveMode=false,moveFrom=null,editMode=false,editSlot=null;
+
+function toggleEditMode(){
+  editMode=!editMode;
+  if(editMode){moveMode=false;moveFrom=null;document.getElementById('moveBtn').style.background='#455a64';document.getElementById('moveBtn').style.color='#fff';document.getElementById('moveHint').classList.remove('show')}
+  document.getElementById('editBtn').style.background=editMode?'#4caf50':'#4caf50';
+  document.getElementById('editBtn').style.color=editMode?'#fff':'#fff';
+  document.getElementById('editBtn').textContent=editMode?'\u2713 Edit Mode ON':'\u270E Edit Mode';
+  document.getElementById('editHint').classList.toggle('show',editMode);
+  renderMap();
+}
+
+function toggleMoveMode(){
+  moveMode=!moveMode;moveFrom=null;
+  if(moveMode){editMode=false;document.getElementById('editBtn').textContent='\u270E Edit Mode';document.getElementById('editHint').classList.remove('show')}
+  document.getElementById('moveBtn').style.background=moveMode?'#4fc3f7':'#455a64';
+  document.getElementById('moveBtn').style.color=moveMode?'#000':'#fff';
+  document.getElementById('moveHint').classList.toggle('show',moveMode);
+  renderMap();
+}
+
+function openScanModal(stationId,side){
+  editSlot=stationId;
+  document.getElementById('scanSlotName').textContent=stationId;
+  document.getElementById('scanPalletId').value='';
+  document.getElementById('scanDesc').value='';
+  document.getElementById('scanDate').value=new Date().toISOString().split('T')[0];
+  if(side==='decant'||side==='buf-decant')document.getElementById('scanType').value='decant';
+  else if(side==='eaches'||side==='buf-eaches')document.getElementById('scanType').value='eaches';
+  else document.getElementById('scanType').value='decant';
+  document.getElementById('scanModal').classList.add('show');
+  setTimeout(function(){document.getElementById('scanPalletId').focus()},100);
+}
+function closeScanModal(){document.getElementById('scanModal').classList.remove('show')}
+function confirmScanIn(){
+  var id=document.getElementById('scanPalletId').value.trim();
+  if(!id){alert('Scan or type a pallet ID');return}
+  var type=document.getElementById('scanType').value;
+  var desc=document.getElementById('scanDesc').value.trim();
+  var date=document.getElementById('scanDate').value;
+  var pallets=getPallets();
+  if(pallets[id]){alert('Pallet '+id+' already in system!');return}
+  pallets[id]={id:id,type:type,desc:desc,date:date||new Date().toISOString().split('T')[0],station:editSlot,assignedTo:null,status:'waiting',wipStart:null,wipPaused:false,wipTotal:0,notes:'',addedAt:Date.now()};
+  savePallets(pallets);closeScanModal();renderMap();
+}
+
+function renderMap(){
+  var stations=getStations();
+  var pallets=getPallets();
+  var active=getActive();
+  var stationPallet={};
+  for(var pid in pallets){var p=pallets[pid];if(p.station)stationPallet[p.station]=p}
+  var container=document.getElementById('mapContainer');
+  var decantStations=stations.filter(function(s){return s.side==='decant'});
+  var eachesStations=stations.filter(function(s){return s.side==='eaches'});
+  var specialStations=stations.filter(function(s){return s.side==='special'});
+  var html='<div class="map-column"><h3 style="color:#4caf50">DECANT SIDE</h3>';
+  decantStations.forEach(function(s){html+=renderStation(s,stationPallet[s.id])});
+  html+='</div><div class="map-column"><h3 style="color:#78909c">SPECIAL</h3>';
+  specialStations.forEach(function(s){html+=renderStation(s,stationPallet[s.id])});
+  html+='</div><div class="map-column"><h3 style="color:#9c27b0">EACHES SIDE</h3>';
+  eachesStations.forEach(function(s){html+=renderStation(s,stationPallet[s.id])});
+  html+='</div>';
+  container.innerHTML=html;
+  var bufD=stations.filter(function(s){return s.side==='buf-decant'});
+  var bufE=stations.filter(function(s){return s.side==='buf-eaches'});
+  var bufHtml='<div class="buffer-lane"><h3 style="color:#4caf50">Decant Buffer</h3><div class="buffer-slots">';
+  bufD.forEach(function(s){bufHtml+=renderStation(s,stationPallet[s.id])});
+  bufHtml+='</div></div><div class="buffer-lane"><h3 style="color:#9c27b0">Eaches Buffer</h3><div class="buffer-slots">';
+  bufE.forEach(function(s){bufHtml+=renderStation(s,stationPallet[s.id])});
+  bufHtml+='</div></div>';
+  document.getElementById('bufferSection').innerHTML=bufHtml;
+}
+
+function renderStation(s,pallet){
+  var cls='station';
+  var inner='';
+  if(pallet){
+    cls+=' has-pallet '+typeClass(pallet.type);
+    if(pallet.status==='wip')cls+=' wip';
+    var statusBadge='';
+    if(pallet.status==='wip')statusBadge='<span class="st-status wip">WIP</span>';
+    else if(pallet.status==='partial')statusBadge='<span class="st-status partial">PARTIAL</span>';
+    else if(pallet.wipPaused)statusBadge='<span class="st-status paused">PAUSED</span>';
+    inner=statusBadge+'<div class="st-header"><span class="st-name">'+s.label+'</span></div>'+
+      '<div class="pax-id">'+pallet.id+'</div>'+
+      '<div class="st-desc">'+typeLabel(pallet.type)+(pallet.desc?' - '+pallet.desc:'')+'</div>'+
+      (pallet.assignedTo?'<div class="st-worker">&#128100; '+pallet.assignedTo+'</div>':'')+
+      (pallet.status==='wip'||pallet.wipPaused?'<div class="st-timer">'+fmtTime(getElapsed(pallet))+'</div>':'');
+  }else{
+    inner='<div class="st-header"><span class="st-name">'+s.label+'</span></div><div style="color:#555;font-size:10px">'+s.note+'</div>'+(editMode?'<div style="color:#4caf50;font-size:16px;margin-top:2px">+</div>':'');
+  }
+  if(moveMode&&moveFrom===s.id)cls+=' selected';
+  return'<div class="'+cls+'" onclick="stationClick(\''+s.id+'\')">'+inner+'</div>';
+}
+
+function stationClick(stationId){
+  if(editMode){
+    var pallets=getPallets();var existing=null,existingPid=null;
+    for(var pid in pallets){if(pallets[pid].station===stationId){existing=pallets[pid];existingPid=pid;break}}
+    if(existing){
+      if(confirm('Remove pallet '+existing.id+' from '+stationId+'?')){
+        delete pallets[existingPid];savePallets(pallets);renderMap();
+      }
+    }else{
+      var stations=getStations();
+      var st=stations.find(function(s){return s.id===stationId});
+      openScanModal(stationId,st?st.side:'');
+    }
+    return;
+  }
+  if(moveMode){
+    if(!moveFrom){
+      var pallets=getPallets();var hasPallet=false;
+      for(var pid in pallets){if(pallets[pid].station===stationId){hasPallet=true;break}}
+      if(!hasPallet){alert('No pallet at this station to move');return}
+      moveFrom=stationId;renderMap();
+    }else{
+      if(moveFrom===stationId){moveFrom=null;renderMap();return}
+      var pallets=getPallets();var sourcePid=null,destPid=null;
+      for(var pid in pallets){
+        if(pallets[pid].station===moveFrom)sourcePid=pid;
+        if(pallets[pid].station===stationId)destPid=pid;
+      }
+      if(sourcePid){
+        if(destPid)pallets[destPid].station=moveFrom;
+        pallets[sourcePid].station=stationId;
+        savePallets(pallets);
+      }
+      moveFrom=null;renderMap();
+    }
+  }else{openStationModal(stationId)}
+}
+
+var currentModalStation=null;
+function openStationModal(stationId){
+  currentModalStation=stationId;
+  var stations=getStations();
+  var st=stations.find(function(s){return s.id===stationId});
+  var pallets=getPallets();var pallet=null,palletKey=null;
+  for(var pid in pallets){if(pallets[pid].station===stationId){pallet=pallets[pid];palletKey=pid;break}}
+  document.getElementById('smTitle').textContent=st?st.label+' - '+st.note:stationId;
+  var html='',actions='';
+  if(pallet){
+    html='<p><strong>Pallet:</strong> '+pallet.id+'</p>'+
+      '<p><strong>Type:</strong> '+typeLabel(pallet.type)+'</p>'+
+      '<p><strong>Description:</strong> '+(pallet.desc||'None')+'</p>'+
+      '<p><strong>Date:</strong> '+(pallet.date||'?')+'</p>'+
+      '<p><strong>Status:</strong> '+(pallet.status||'waiting')+'</p>'+
+      (pallet.assignedTo?'<p><strong>Assigned:</strong> '+pallet.assignedTo+'</p>':'')+
+      (pallet.status==='wip'||pallet.wipPaused?'<p><strong>Timer:</strong> '+fmtTime(getElapsed(pallet))+'</p>':'')+
+      (pallet.notes?'<p><strong>Notes:</strong> '+pallet.notes+'</p>':'');
+    if(pallet.type==='nocsx')html+='<p style="color:#ff9800;font-weight:700;margin-top:6px">&#9888; Needs Carton Preditor first!</p>';
+    if(pallet.status==='wip'){
+      actions='<button class="btn btn-warning btn-sm" onclick="pauseWork(\''+palletKey+'\')">&#9208; Pause</button>'+
+        '<button class="btn btn-danger btn-sm" onclick="openStopModal(\''+palletKey+'\')">&#9724; Stop</button>';
+    }else if(pallet.wipPaused){
+      actions='<button class="btn btn-success btn-sm" onclick="resumeWork(\''+palletKey+'\')">&#9654; Resume</button>'+
+        '<button class="btn btn-danger btn-sm" onclick="openStopModal(\''+palletKey+'\')">&#9724; Stop</button>';
+    }else{
+      if(pallet.assignedTo){
+        actions='<button class="btn btn-success btn-sm" onclick="startWork(\''+palletKey+'\')">&#9654; Start Timer</button>'+
+          '<button class="btn btn-secondary btn-sm" onclick="unassignPallet(\''+palletKey+'\')">Unassign</button>';
+      }
+    }
+    actions+='<button class="btn btn-danger btn-sm" onclick="removePallet(\''+palletKey+'\')">&#128465; Remove</button>';
+  }else{html='<p style="color:#666">Empty station</p>'}
+  document.getElementById('smContent').innerHTML=html;
+  document.getElementById('smActions').innerHTML=actions;
+  document.getElementById('stationModal').classList.add('show');
+}
+function closeStationModal(){document.getElementById('stationModal').classList.remove('show')}
+
+function startWork(pid){
+  var pallets=getPallets();if(!pallets[pid])return;
+  pallets[pid].status='wip';pallets[pid].wipStart=Date.now();
+  pallets[pid].wipTotal=pallets[pid].wipTotal||0;pallets[pid].wipPaused=false;
+  savePallets(pallets);closeStationModal();renderMap();
+}
+function pauseWork(pid){
+  var pallets=getPallets();if(!pallets[pid])return;
+  pallets[pid].wipTotal=(pallets[pid].wipTotal||0)+(Date.now()-pallets[pid].wipStart);
+  pallets[pid].wipStart=null;pallets[pid].wipPaused=true;pallets[pid].status='paused';
+  savePallets(pallets);closeStationModal();renderMap();
+}
+function resumeWork(pid){
+  var pallets=getPallets();if(!pallets[pid])return;
+  pallets[pid].wipStart=Date.now();pallets[pid].wipPaused=false;pallets[pid].status='wip';
+  savePallets(pallets);closeStationModal();renderMap();
+}
+
+var stopPalletKey=null;
+function openStopModal(pid){stopPalletKey=pid;document.getElementById('stopModal').classList.add('show')}
+function closeStopModal(){document.getElementById('stopModal').classList.remove('show')}
+function confirmStop(){
+  var pallets=getPallets();var p=pallets[stopPalletKey];
+  if(!p){closeStopModal();return}
+  var status=document.getElementById('stopStatus').value;
+  var notes=document.getElementById('stopNotes').value.trim();
+  var elapsed=getElapsed(p);
+  var completed=getCompleted();
+  completed.push({id:p.id,type:p.type,desc:p.desc,worker:p.assignedTo,station:p.station,duration:elapsed,status:status,notes:notes,completedAt:Date.now()});
+  saveCompleted(completed);
+  if(status==='complete'){
+    var active=getActive();
+    if(p.assignedTo&&active[p.assignedTo]){active[p.assignedTo].palletId=null;saveActive(active)}
+    delete pallets[stopPalletKey];
+  }else{
+    var active=getActive();
+    if(p.assignedTo&&active[p.assignedTo]){active[p.assignedTo].palletId=null;saveActive(active)}
+    p.assignedTo=null;p.status='partial';p.wipStart=null;p.wipPaused=false;p.wipTotal=elapsed;
+    p.notes=(p.notes?p.notes+' | ':'')+notes;
+  }
+  savePallets(pallets);document.getElementById('stopNotes').value='';
+  closeStopModal();closeStationModal();renderMap();
+}
+
+function unassignPallet(pid){
+  var pallets=getPallets();if(!pallets[pid])return;
+  var active=getActive();var login=pallets[pid].assignedTo;
+  if(login&&active[login]){active[login].palletId=null;saveActive(active)}
+  pallets[pid].assignedTo=null;pallets[pid].status='waiting';
+  savePallets(pallets);closeStationModal();renderMap();
+}
+
+function removePallet(pid){
+  if(!confirm('Remove this pallet entirely?'))return;
+  var pallets=getPallets();var active=getActive();
+  if(pallets[pid]&&pallets[pid].assignedTo){
+    var login=pallets[pid].assignedTo;
+    if(active[login]){active[login].palletId=null;saveActive(active)}
+  }
+  delete pallets[pid];savePallets(pallets);closeStationModal();renderMap();
+}
+
+function scanPallet(){
+  var id=document.getElementById('qPalletId').value.trim();
+  if(!id){alert('Scan or type a pallet ID');return}
+  var type=document.getElementById('qType').value;
+  var desc=document.getElementById('qDesc').value.trim();
+  var date=document.getElementById('qDate').value;
+  var station=document.getElementById('qStation').value;
+  var pallets=getPallets();
+  if(pallets[id]){alert('Pallet '+id+' already in system!');return}
+  pallets[id]={id:id,type:type,desc:desc,date:date||new Date().toISOString().split('T')[0],station:station||null,assignedTo:null,status:'waiting',wipStart:null,wipPaused:false,wipTotal:0,notes:'',addedAt:Date.now()};
+  savePallets(pallets);
+  document.getElementById('qPalletId').value='';document.getElementById('qDesc').value='';
+  renderQueue();renderMap();
+}
+
+function renderQueue(){
+  var pallets=getPallets();var arr=[];
+  for(var pid in pallets)arr.push(pallets[pid]);
+  arr.sort(function(a,b){var da=a.date||'9999',db=b.date||'9999';if(da!==db)return da.localeCompare(db);return(a.addedAt||0)-(b.addedAt||0)});
+  document.getElementById('queueCount').textContent=arr.length;
+  var html='';
+  arr.forEach(function(p){
+    var statusCls=p.status==='wip'?'wip':p.status==='partial'?'partial':p.assignedTo?'assigned':'waiting';
+    var statusTxt=p.status==='wip'?'WIP':p.status==='partial'?'Partial':p.assignedTo?'Assigned':'Waiting';
+    html+='<div class="queue-item '+typeClass(p.type)+'"><div><div class="qi-id">'+p.id+'</div><div class="qi-meta">'+typeLabel(p.type)+(p.desc?' - '+p.desc:'')+' | '+(p.date||'?')+(p.station?' | @'+p.station:'')+'</div></div><span class="qi-status '+statusCls+'">'+statusTxt+'</span></div>';
+  });
+  if(!arr.length)html='<p style="color:#666;text-align:center;padding:20px">No pallets in queue</p>';
+  document.getElementById('queueList').innerHTML=html;
+}
+
+function checkInAssociate(){
+  var login=document.getElementById('pLogin').value.trim().toLowerCase();
+  if(!login){alert('Enter a login');return}
+  var stationId=document.getElementById('pStation').value;
+  if(!stationId){alert('Select a station');return}
+  var roster=getRoster();
+  var assoc=null;
+  for(var i=0;i<roster.length;i++){if(roster[i].login.toLowerCase()===login){assoc=roster[i];break}}
+  if(!assoc){alert('Login "'+login+'" not in roster. Ask manager to add you.');return}
+  var active=getActive();
+  if(active[login]&&active[login].palletId){alert(login+' already has a pallet assigned. Finish that one first.');return}
+  var perms=Array.isArray(assoc.perms)?assoc.perms:[assoc.perms];
+  var pallets=getPallets();var available=[];
+  for(var pid in pallets){
+    var p=pallets[pid];
+    if(p.assignedTo)continue;if(p.status==='wip')continue;
+    if(p.type==='decant'&&perms.indexOf('decant')===-1)continue;
+    if(p.type==='nocsx'&&perms.indexOf('carton-preditor')===-1)continue;
+    if(p.type==='eaches'&&perms.indexOf('eaches')===-1)continue;
+    available.push([pid,p]);
+  }
+  available.sort(function(a,b){var da=a[1].date||'9999',db=b[1].date||'9999';if(da!==db)return da.localeCompare(db);return(a[1].addedAt||0)-(b[1].addedAt||0)});
+  if(available.length===0){alert('No pallets available for '+login+'\'s permissions ('+perms.join(', ')+')');return}
+  var chosen=available[0];var chosenPid=chosen[0];var chosenPallet=chosen[1];
+  for(var pid2 in pallets){
+    if(pallets[pid2].station===stationId&&pid2!==chosenPid){
+      pallets[pid2].station=chosenPallet.station;break;
+    }
+  }
+  chosenPallet.station=stationId;chosenPallet.assignedTo=login;
+  chosenPallet.status='wip';chosenPallet.wipStart=Date.now();chosenPallet.wipPaused=false;
+  savePallets(pallets);
+  active[login]={station:stationId,palletId:chosenPid,checkedInAt:Date.now()};
+  saveActive(active);
+  document.getElementById('pLogin').value='';
+  alert('Assigned '+chosenPid+' ('+typeLabel(chosenPallet.type)+') to '+login+' at '+stationId+'. Timer started!');
+  renderPeople();renderMap();
+}
+
+function renderPeople(){
+  var active=getActive();var pallets=getPallets();var html='';
+  var logins=Object.keys(active).sort();
+  if(!logins.length)html='<p style="color:#666;text-align:center;padding:20px">No one checked in</p>';
+  logins.forEach(function(login){
+    var a=active[login];var pallet=a.palletId?pallets[a.palletId]:null;
+    var idle=!pallet;var timer=pallet?fmtTime(getElapsed(pallet)):'--';
+    var statusTxt=idle?'Idle':pallet.status==='wip'?'Working':pallet.wipPaused?'PAUSED':'Assigned';
+    var pauseBtn='';
+    if(pallet&&pallet.status==='wip'){
+      pauseBtn='<button class="btn btn-warning btn-sm" onclick="pauseFromPeople(\''+a.palletId+'\')">&#9208; Pause</button>';
+    }else if(pallet&&pallet.wipPaused){
+      pauseBtn='<button class="btn btn-success btn-sm" onclick="resumeFromPeople(\''+a.palletId+'\')">&#9654; Resume</button>';
+    }
+    html+='<div class="person-card'+(idle?' idle':'')+'"><div class="pc-name">'+login+(a.station?' @ '+a.station:'')+'<div style="font-size:10px;color:'+(pallet&&pallet.wipPaused?'#ffeb3b':'#aaa')+'">'+statusTxt+'</div></div><div class="pc-meta">'+(pallet?pallet.id+' ('+typeLabel(pallet.type)+')':'No pallet')+'<div class="pc-timer">'+timer+'</div></div><div style="display:flex;flex-direction:column;gap:4px">'+pauseBtn+'<button class="btn btn-danger btn-sm" onclick="checkOut(\''+login+'\')">Check Out</button></div></div>';
+  });
+  document.getElementById('peopleList').innerHTML=html;
+}
+
+function pauseFromPeople(pid){
+  var pallets=getPallets();if(!pallets[pid])return;
+  pallets[pid].wipTotal=(pallets[pid].wipTotal||0)+(Date.now()-pallets[pid].wipStart);
+  pallets[pid].wipStart=null;pallets[pid].wipPaused=true;pallets[pid].status='paused';
+  savePallets(pallets);renderPeople();renderMap();
+}
+function resumeFromPeople(pid){
+  var pallets=getPallets();if(!pallets[pid])return;
+  pallets[pid].wipStart=Date.now();pallets[pid].wipPaused=false;pallets[pid].status='wip';
+  savePallets(pallets);renderPeople();renderMap();
+}
+
+function checkOut(login){
+  if(!confirm('Check out '+login+'?'))return;
+  var active=getActive();var pallets=getPallets();
+  if(active[login]&&active[login].palletId){
+    var pid=active[login].palletId;
+    if(pallets[pid]){
+      if(pallets[pid].status==='wip'||pallets[pid].wipPaused){pallets[pid].wipTotal=getElapsed(pallets[pid]);pallets[pid].status='partial'}
+      else pallets[pid].status='waiting';
+      pallets[pid].assignedTo=null;pallets[pid].wipStart=null;pallets[pid].wipPaused=false;
+      savePallets(pallets);
+    }
+  }
+  delete active[login];saveActive(active);renderPeople();renderMap();
+}
+
+function addAssociate(){
+  var login=document.getElementById('mgrLogin').value.trim();
+  var name=document.getElementById('mgrName').value.trim();
+  var shift=document.getElementById('mgrShift').value;
+  if(!login){alert('Login required');return}
+  var perms=[];
+  if(document.getElementById('permDecant').checked)perms.push('decant');
+  if(document.getElementById('permEaches').checked)perms.push('eaches');
+  if(document.getElementById('permCarton').checked)perms.push('carton-preditor');
+  if(!perms.length){alert('Select at least one permission');return}
+  var roster=getRoster();var idx=-1;
+  for(var i=0;i<roster.length;i++){if(roster[i].login.toLowerCase()===login.toLowerCase()){idx=i;break}}
+  if(idx>=0)roster[idx]={login:login,name:name,perms:perms,shift:shift};
+  else roster.push({login:login,name:name,perms:perms,shift:shift});
+  saveRoster(roster);
+  document.getElementById('mgrLogin').value='';document.getElementById('mgrName').value='';
+  document.getElementById('permDecant').checked=false;document.getElementById('permEaches').checked=false;document.getElementById('permCarton').checked=false;
+  renderRoster();
+}
+
+function renderRoster(){
+  var roster=getRoster();var tbody=document.getElementById('rosterBody');
+  if(!roster.length){tbody.innerHTML='<tr><td colspan="5" style="color:#666;text-align:center">No associates</td></tr>';return}
+  var html='';
+  roster.forEach(function(r,i){
+    var perms=Array.isArray(r.perms)?r.perms:[r.perms];
+    var badges=perms.map(function(p){var c=p==='decant'?'decant':p==='eaches'?'eaches':'carton';var l=p==='decant'?'Decant':p==='eaches'?'Eaches':'Carton P.';return'<span class="perm-tag '+c+'">'+l+'</span>'}).join(' ');
+    html+='<tr><td>'+r.login+'</td><td>'+(r.name||'-')+'</td><td>'+badges+'</td><td>'+r.shift+'</td><td><button class="btn btn-danger btn-sm" onclick="removeAssoc('+i+')">X</button></td></tr>';
+  });
+  tbody.innerHTML=html;
+}
+function removeAssoc(i){var r=getRoster();r.splice(i,1);saveRoster(r);renderRoster()}
+
+function renderStaffing(){
+  var pallets=getPallets();var active=getActive();
+  var counts={decant:0,nocsx:0,eaches:0,total:0};
+  for(var pid in pallets){var p=pallets[pid];if(p.status!=='wip'){counts[p.type]=(counts[p.type]||0)+1;counts.total++}}
+  var activeCount=Object.keys(active).length;
+  var roster=getRoster();var permCounts={decant:0,eaches:0,'carton-preditor':0};
+  roster.forEach(function(r){var perms=Array.isArray(r.perms)?r.perms:[r.perms];perms.forEach(function(p){permCounts[p]=(permCounts[p]||0)+1})});
+  var html='<div class="staff-stat"><div class="num">'+counts.total+'</div><div class="lbl">Pallets Waiting</div></div>'+
+    '<div class="staff-stat"><div class="num" style="color:#4caf50">'+counts.decant+'</div><div class="lbl">Decant</div></div>'+
+    '<div class="staff-stat'+(counts.nocsx>2&&permCounts['carton-preditor']<2?' warn':'')+'"><div class="num" style="color:#ff9800">'+(counts.nocsx||0)+'</div><div class="lbl">Carton Pred.</div></div>'+
+    '<div class="staff-stat"><div class="num" style="color:#ce93d8">'+counts.eaches+'</div><div class="lbl">Eaches</div></div>'+
+    '<div class="staff-stat"><div class="num" style="color:#4fc3f7">'+activeCount+'</div><div class="lbl">Active People</div></div>';
+  document.getElementById('staffingBar').innerHTML=html;
+}
+
+function exportData(){
+  var pallets=getPallets();
+  var rows=[['PalletID','Type','Description','Date','Station','AssignedTo','Status','TotalTime_min','Notes']];
+  for(var pid in pallets){var p=pallets[pid];rows.push([p.id,p.type,(p.desc||''),(p.date||''),(p.station||''),(p.assignedTo||''),p.status||'waiting',Math.round(getElapsed(p)/60000),(p.notes||'')])}
+  var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"'}).join(',')}).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='npc-export-'+new Date().toISOString().split('T')[0]+'.csv';a.click();
+}
+
+setInterval(function(){
+  var activePage=document.querySelector('.page.active');
+  if(activePage){var id=activePage.id;if(id==='page-map')renderMap();else if(id==='page-people')renderPeople()}
+},5000);
+
+getStations();
+document.getElementById('qDate').value=new Date().toISOString().split('T')[0];
+renderMap();
+</script>
+</body>
+</html>

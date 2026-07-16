@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NPC Manager Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #eee; min-height: 100vh; }
+
+.header { background: #161b22; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #f39c12; }
+.header h1 { font-size: 1.4rem; color: #f39c12; }
+.header .subtitle { font-size: 0.85rem; color: #888; }
+
+.nav-tabs { display: flex; background: #161b22; border-bottom: 1px solid #30363d; padding: 0 20px; }
+.nav-tab { padding: 12px 20px; cursor: pointer; color: #888; font-weight: 600; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.nav-tab:hover { color: #eee; }
+.nav-tab.active { color: #f39c12; border-bottom-color: #f39c12; }
+
+.tab-content { display: none; padding: 20px; }
+.tab-content.active { display: block; }
+
+.stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+.stat-card { background: #161b22; padding: 18px; border-radius: 10px; text-align: center; border-top: 3px solid #30363d; }
+.stat-card .number { font-size: 2.2rem; font-weight: 700; }
+.stat-card .label { font-size: 0.8rem; color: #888; text-transform: uppercase; margin-top: 4px; }
+.stat-card.green .number { color: #4caf50; }
+.stat-card.green { border-top-color: #4caf50; }
+.stat-card.blue .number { color: #4fc3f7; }
+.stat-card.blue { border-top-color: #4fc3f7; }
+.stat-card.orange .number { color: #ff9800; }
+.stat-card.orange { border-top-color: #ff9800; }
+.stat-card.red .number { color: #e74c3c; }
+.stat-card.red { border-top-color: #e74c3c; }
+
+.form-section { background: #161b22; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+.form-section h3 { color: #f39c12; margin-bottom: 15px; }
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 0.8rem; color: #888; text-transform: uppercase; }
+.form-group input, .form-group select { padding: 10px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #eee; font-size: 0.95rem; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #f39c12; }
+.btn-add { padding: 10px 24px; background: #f39c12; color: #1a1a2e; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.95rem; height: 40px; }
+.btn-add:hover { background: #ffb74d; }
+
+.checkbox-row { display: flex; gap: 15px; align-items: center; padding-top: 5px; }
+.checkbox-row label { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #ccc; cursor: pointer; }
+.checkbox-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #f39c12; cursor: pointer; }
+
+.table-container { background: #161b22; border-radius: 10px; overflow: hidden; }
+.table-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; }
+.table-header h3 { color: #f39c12; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #0d1117; padding: 12px 15px; text-align: left; font-size: 0.8rem; text-transform: uppercase; color: #888; }
+td { padding: 12px 15px; border-top: 1px solid #30363d; font-size: 0.9rem; }
+tr:hover { background: #1c2128; }
+
+.type-badge { padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.badge-decant { background: #4caf50; color: #fff; }
+.badge-eaches { background: #2196f3; color: #fff; }
+.badge-carton { background: #ff9800; color: #1a1a2e; }
+
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.dot-queued { background: #4fc3f7; }
+.dot-assigned { background: #4caf50; }
+.dot-completed { background: #888; }
+.dot-issue { background: #e74c3c; }
+
+.btn-sm { padding: 5px 12px; border: none; border-radius: 4px; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-right: 4px; }
+.btn-remove { background: #e74c3c; color: #fff; }
+.btn-reassign { background: #2196f3; color: #fff; }
+.btn-export { background: #4caf50; color: #fff; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+.assoc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+.assoc-card { background: #161b22; border-radius: 10px; padding: 18px; border-left: 4px solid #30363d; }
+.assoc-card.working { border-left-color: #4caf50; }
+.assoc-card.idle { border-left-color: #ff9800; }
+.assoc-card .name { font-size: 1.1rem; font-weight: 700; margin-bottom: 5px; }
+.assoc-card .status-line { font-size: 0.85rem; color: #aaa; }
+.assoc-card .perm-tags { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.perm-tag { padding: 2px 8px; background: #30363d; border-radius: 3px; font-size: 0.7rem; color: #aaa; }
+.perm-tag.active { background: #0f3460; color: #4fc3f7; }
+.assoc-timer { font-family: 'Courier New', monospace; font-size: 1.3rem; color: #4caf50; margin-top: 8px; }
+
+.notification { position: fixed; top: 20px; right: 20px; background: #4caf50; color: #fff; padding: 15px 25px; border-radius: 8px; font-weight: 600; z-index: 1000; display: none; animation: slideIn 0.3s; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.password-gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; }
+.password-box { background: #161b22; padding: 40px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; }
+.password-box h2 { color: #f39c12; margin-bottom: 20px; }
+.password-box input { width: 100%; padding: 14px; margin-bottom: 15px; border: 2px solid #30363d; border-radius: 8px; background: #0d1117; color: #eee; font-size: 1.1rem; text-align: center; }
+.password-box button { width: 100%; padding: 14px; background: #f39c12; color: #1a1a2e; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="notification" class="notification"></div>
+
+<div id="passwordGate" class="password-gate">
+  <div class="password-box">
+    <h2>🔐 NPC Manager</h2>
+    <p style="color:#aaa; margin-bottom:20px;">Enter manager password</p>
+    <input type="password" id="passwordInput" placeholder="Password" autofocus>
+    <button onclick="checkPassword()">Access Dashboard</button>
+    <p style="color:#666; margin-top:15px; font-size:0.8rem;">Default: npc2026</p>
+  </div>
+</div>
+
+<div id="dashboard" style="display:none;">
+  <div class="header">
+    <div>
+      <h1>🔐 NPC Manager Dashboard</h1>
+      <span class="subtitle">Real-time floor monitoring &amp; associate management</span>
+    </div>
+    <button class="btn-export" onclick="exportData()">📊 Export All Data</button>
+  </div>
+
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchTab('overview')">Overview</div>
+    <div class="nav-tab" onclick="switchTab('associates')">Associates</div>
+    <div class="nav-tab" onclick="switchTab('queue')">Pallet Queue</div>
+    <div class="nav-tab" onclick="switchTab('history')">History</div>
+  </div>
+
+  <div id="tab-overview" class="tab-content active">
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="table-container">
+      <div class="table-header">
+        <h3>🟢 Live Floor Status</h3>
+        <span style="color:#888; font-size:0.85rem;" id="lastUpdate"></span>
+      </div>
+      <table>
+        <thead><tr><th>Associate</th><th>Status</th><th>Pallet</th><th>Type</th><th>Time</th><th>Actions</th></tr></thead>
+        <tbody id="floorTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-associates" class="tab-content">
+    <div class="form-section">
+      <h3>➕ Register Associate</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Login ID</label>
+          <input type="text" id="newAssocId" placeholder="e.g., jsmith">
+        </div>
+        <div class="form-group">
+          <label>Display Name</label>
+          <input type="text" id="newAssocName" placeholder="e.g., John Smith">
+        </div>
+        <div class="form-group">
+          <label>Shift</label>
+          <select id="newAssocShift">
+            <option value="FHD">FHD</option>
+            <option value="FHN">FHN</option>
+            <option value="BHD">BHD</option>
+            <option value="BHN">BHN</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top: 12px;">
+        <label style="font-size: 0.8rem; color: #888; text-transform: uppercase;">Permissions</label>
+        <div class="checkbox-row">
+          <label><input type="checkbox" id="permDecant" checked> Decant</label>
+          <label><input type="checkbox" id="permEaches" checked> Each Receive</label>
+          <label><input type="checkbox" id="permCarton" checked> Carton Preditor</label>
+        </div>
+      </div>
+      <div style="margin-top: 15px;">
+        <button class="btn-add" onclick="registerAssociate()">Register Associate</button>
+      </div>
+    </div>
+    <div class="assoc-grid" id="assocGrid"></div>
+  </div>
+
+  <div id="tab-queue" class="tab-content">
+    <div class="table-container">
+      <div class="table-header"><h3>📦 Full Pallet Queue</h3></div>
+      <table>
+        <thead><tr><th>Status</th><th>Pallet ID</th><th>Type</th><th>Description</th><th>Station</th><th>Assigned To</th><th>Added By</th><th>Added</th><th>Actions</th></tr></thead>
+        <tbody id="queueTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-history" class="tab-content">
+    <div class="table-container">
+      <div class="table-header">
+        <h3>📜 Completed Work History</h3>
+        <button class="btn-export" onclick="exportHistory()">Export CSV</button>
+      </div>
+      <table>
+        <thead><tr><th>Pallet</th><th>Type</th><th>Associate</th><th>Duration</th><th>Completed</th><th>Issues</th></tr></thead>
+        <tbody id="historyTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEYS = { QUEUE: 'npc_pallet_queue', ASSIGNMENTS: 'npc_assignments', ASSOCIATES: 'npc_associates', HISTORY: 'npc_history', PASSWORD: 'npc_manager_password' };
+function getData(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
+function setData(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+function checkPassword() {
+  const input = document.getElementById('passwordInput').value;
+  const stored = localStorage.getItem(STORAGE_KEYS.PASSWORD) || 'npc2026';
+  if (input === stored) { document.getElementById('passwordGate').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; refreshAll(); startSyncLoop(); }
+  else { showNotification('Wrong password!', '#e74c3c'); }
+}
+document.getElementById('passwordInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') checkPassword(); });
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  event.target.classList.add('active');
+  refreshAll();
+}
+
+function refreshAll() { renderStats(); renderFloor(); renderQueue(); renderAssociates(); renderHistory(); document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString(); }
+
+function renderStats() {
+  const queue = getData(STORAGE_KEYS.QUEUE);
+  const assignments = getData(STORAGE_KEYS.ASSIGNMENTS);
+  const queued = queue.filter(p => p.status === 'queued').length;
+  const active = assignments.filter(a => a.status === 'active').length;
+  const issues = assignments.filter(a => a.status === 'issue').length;
+  const completedToday = assignments.filter(a => a.status === 'completed' && new Date(a.completedAt).toDateString() === new Date().toDateString()).length;
+  document.getElementById('statsBar').innerHTML = '<div class="stat-card blue"><div class="number">' + queued + '</div><div class="label">In Queue</div></div><div class="stat-card green"><div class="number">' + active + '</div><div class="label">Active Now</div></div><div class="stat-card orange"><div class="number">' + completedToday + '</div><div class="label">Completed Today</div></div><div class="stat-card red"><div class="number">' + issues + '</div><div class="label">Issues</div></div>';
+}
+
+function renderFloor() {
+  const assignments = getData(STORAGE_KEYS.ASSIGNMENTS);
+  const associates = getData(STORAGE_KEYS.ASSOCIATES);
+  const tbody = document.getElementById('floorTable');
+  const activeAssignments = assignments.filter(a => a.status === 'active');
+  const activeIds = activeAssignments.map(a => a.assignee);
+  const idleAssocs = associates.filter(a => !activeIds.includes(a.id));
+  let rows = '';
+  activeAssignments.forEach(a => {
+    const elapsed = Math.floor((Date.now() - new Date(a.startedAt).getTime()) / 1000);
+    const isLong = elapsed > 1800;
+    rows += '<tr><td><strong>' + a.assignee.toUpperCase() + '</strong></td><td><span class="status-dot dot-assigned"></span>Working</td><td>' + a.palletId + '</td><td><span class="type-badge badge-' + a.type + '">' + a.type + '</span></td><td style="color:' + (isLong ? '#e74c3c' : '#4caf50') + '; font-family:monospace; font-weight:700;">' + formatTime(elapsed) + '</td><td><button class="btn-sm btn-remove" onclick="forceComplete(\'' + a.id + '\')">Force Complete</button></td></tr>';
+  });
+  idleAssocs.forEach(a => {
+    rows += '<tr style="opacity:0.6;"><td><strong>' + (a.name || a.id).toUpperCase() + '</strong></td><td><span class="status-dot dot-queued"></span>Idle</td><td>\u2014</td><td>\u2014</td><td>\u2014</td><td>\u2014</td></tr>';
+  });
+  tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align:center; color:#666; padding:30px;">No associates active</td></tr>';
+}
+
+function renderQueue() {
+  const queue = getData(STORAGE_KEYS.QUEUE);
+  const tbody = document.getElementById('queueTable');
+  if (queue.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#666; padding:30px;">Queue empty \u2014 pallets added from Associate page</td></tr>'; return; }
+  tbody.innerHTML = queue.slice().reverse().map(p => '<tr><td><span class="status-dot dot-' + p.status + '"></span>' + p.status + '</td><td><strong>' + p.palletId + '</strong></td><td><span class="type-badge badge-' + p.type + '">' + p.type + '</span></td><td>' + (p.description || '\u2014') + '</td><td>' + (p.station || '\u2014') + '</td><td>' + (p.assignee || '\u2014') + '</td><td>' + (p.addedBy || '\u2014') + '</td><td>' + new Date(p.addedAt).toLocaleTimeString() + '</td><td>' + (p.status === 'queued' ? '<button class="btn-sm btn-remove" onclick="removePallet(\'' + p.palletId + '\')">Remove</button>' : '') + '</td></tr>').join('');
+}
+
+function renderAssociates() {
+  const associates = getData(STORAGE_KEYS.ASSOCIATES);
+  const assignments = getData(STORAGE_KEYS.ASSIGNMENTS);
+  const grid = document.getElementById('assocGrid');
+  if (associates.length === 0) { grid.innerHTML = '<p style="color:#666; padding:20px;">No associates registered yet.</p>'; return; }
+  grid.innerHTML = associates.map(a => {
+    const active = assignments.find(as => as.assignee === a.id && as.status === 'active');
+    const isWorking = !!active;
+    const elapsed = isWorking ? Math.floor((Date.now() - new Date(active.startedAt).getTime()) / 1000) : 0;
+    return '<div class="assoc-card ' + (isWorking ? 'working' : 'idle') + '"><div class="name">' + (a.name || a.id).toUpperCase() + '</div><div class="status-line">' + (a.shift || '\u2014') + ' | ' + (isWorking ? '\uD83D\uDFE2 ' + active.palletId : '\uD83D\uDFE1 Idle') + '</div>' + (isWorking ? '<div class="assoc-timer">' + formatTime(elapsed) + '</div>' : '') + '<div class="perm-tags">' + (a.permissions || []).map(p => '<span class="perm-tag active">' + p + '</span>').join('') + '</div><div style="margin-top:10px;"><button class="btn-sm btn-reassign" onclick="editPermissions(\'' + a.id + '\')">Edit Perms</button><button class="btn-sm btn-remove" onclick="removeAssociate(\'' + a.id + '\')">Remove</button></div></div>';
+  }).join('');
+}
+
+function renderHistory() {
+  const history = getData(STORAGE_KEYS.HISTORY);
+  const assignments = getData(STORAGE_KEYS.ASSIGNMENTS);
+  const completed = [...history, ...assignments.filter(a => a.status === 'completed' || a.status === 'issue')];
+  const seen = new Set();
+  const unique = completed.filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });
+  const tbody = document.getElementById('historyTable');
+  tbody.innerHTML = unique.slice().reverse().slice(0, 50).map(a => '<tr><td>' + a.palletId + '</td><td><span class="type-badge badge-' + a.type + '">' + a.type + '</span></td><td>' + a.assignee + '</td><td style="font-family:monospace;">' + (a.duration ? formatTime(a.duration) : '\u2014') + '</td><td>' + (a.completedAt ? new Date(a.completedAt).toLocaleString() : '\u2014') + '</td><td>' + (a.issue ? '\u26A0\uFE0F ' + a.issue : '\u2705') + '</td></tr>').join('') || '<tr><td colspan="6" style="text-align:center; color:#666; padding:30px;">No history yet</td></tr>';
+}
+
+function forceComplete(assignmentId) {
+  if (!confirm('Force complete this assignment?')) return;
+  const assignments = getData(STORAGE_KEYS.ASSIGNMENTS);
+  const idx = assignments.findIndex(a => a.id === assignmentId);
+  if (idx !== -1) {
+    assignments[idx].status = 'completed'; assignments[idx].completedAt = new Date().toISOString();
+    assignments[idx].duration = Math.floor((Date.now() - new Date(assignments[idx].startedAt).getTime()) / 1000);
+    assignments[idx].note = 'Force completed by manager';
+    setData(STORAGE_KEYS.ASSIGNMENTS, assignments);
+    const queue = getData(STORAGE_KEYS.QUEUE);
+    const qIdx = queue.findIndex(p => p.palletId === assignments[idx].palletId);
+    if (qIdx !== -1) { queue[qIdx].status = 'completed'; setData(STORAGE_KEYS.QUEUE, queue); }
+  }
+  showNotification('Force completed', '#ff9800'); refreshAll();
+}
+
+function removePallet(palletId) {
+  if (!confirm('Remove ' + palletId + '?')) return;
+  let queue = getData(STORAGE_KEYS.QUEUE);
+  queue = queue.filter(p => !(p.palletId === palletId && p.status === 'queued'));
+  setData(STORAGE_KEYS.QUEUE, queue); refreshAll();
+}
+
+function registerAssociate() {
+  const id = document.getElementById('newAssocId').value.trim().toLowerCase();
+  const name = document.getElementById('newAssocName').value.trim();
+  const shift = document.getElementById('newAssocShift').value;
+  if (!id) { showNotification('Login ID required!', '#e74c3c'); return; }
+  const permissions = [];
+  if (document.getElementById('permDecant').checked) permissions.push('decant');
+  if (document.getElementById('permEaches').checked) permissions.push('eaches');
+  if (document.getElementById('permCarton').checked) permissions.push('carton');
+  if (permissions.length === 0) { showNotification('Select at least one permission!', '#e74c3c'); return; }
+  const associates = getData(STORAGE_KEYS.ASSOCIATES);
+  if (associates.find(a => a.id === id)) { showNotification('Already exists!', '#ff9800'); return; }
+  associates.push({ id, name: name || id, permissions, shift, registeredAt: new Date().toISOString() });
+  setData(STORAGE_KEYS.ASSOCIATES, associates);
+  document.getElementById('newAssocId').value = ''; document.getElementById('newAssocName').value = '';
+  showNotification((name || id) + ' registered!', '#4caf50'); refreshAll();
+}
+
+function editPermissions(assocId) {
+  const associates = getData(STORAGE_KEYS.ASSOCIATES);
+  const assoc = associates.find(a => a.id === assocId);
+  if (!assoc) return;
+  const perms = ['decant', 'eaches', 'carton'];
+  const current = assoc.permissions || [];
+  const newPerms = [];
+  perms.forEach(p => { if (confirm('Allow ' + (assoc.name || assocId) + ' \u2192 "' + p.toUpperCase() + '"?\n\nCurrently: ' + (current.includes(p) ? 'YES' : 'NO'))) newPerms.push(p); });
+  assoc.permissions = newPerms;
+  setData(STORAGE_KEYS.ASSOCIATES, associates);
+  showNotification('Permissions updated', '#4caf50'); refreshAll();
+}
+
+function removeAssociate(assocId) {
+  if (!confirm('Remove ' + assocId + '?')) return;
+  let associates = getData(STORAGE_KEYS.ASSOCIATES);
+  associates = associates.filter(a => a.id !== assocId);
+  setData(STORAGE_KEYS.ASSOCIATES, associates); refreshAll();
+}
+
+function exportData() {
+  const data = { queue: getData(STORAGE_KEYS.QUEUE), assignments: getData(STORAGE_KEYS.ASSIGNMENTS), associates: getData(STORAGE_KEYS.ASSOCIATES), history: getData(STORAGE_KEYS.HISTORY), exportedAt: new Date().toISOString() };
+  downloadFile('npc-export-' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(data, null, 2));
+}
+
+function exportHistory() {
+  const all = [...getData(STORAGE_KEYS.HISTORY), ...getData(STORAGE_KEYS.ASSIGNMENTS).filter(a => a.status === 'completed' || a.status === 'issue')];
+  const csv = 'Pallet ID,Type,Associate,Duration (sec),Completed At,Issue\n' + all.map(a => a.palletId + ',' + a.type + ',' + a.assignee + ',' + (a.duration || '') + ',' + (a.completedAt || '') + ',' + (a.issue || '').replace(/,/g, ';')).join('\n');
+  downloadFile('npc-history-' + new Date().toISOString().slice(0,10) + '.csv', csv);
+}
+
+function downloadFile(filename, content) { const blob = new Blob([content], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); }
+
+function formatTime(seconds) { return String(Math.floor(seconds/3600)).padStart(2,'0') + ':' + String(Math.floor((seconds%3600)/60)).padStart(2,'0') + ':' + String(seconds%60).padStart(2,'0'); }
+
+function showNotification(msg, color) { const el = document.getElementById('notification'); el.textContent = msg; el.style.background = color; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
+
+function startSyncLoop() { window.addEventListener('storage', (e) => { if (Object.values(STORAGE_KEYS).includes(e.key)) refreshAll(); }); setInterval(refreshAll, 3000); }
+</script>
+</body>
+</html>
